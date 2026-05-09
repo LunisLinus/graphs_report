@@ -1,0 +1,1731 @@
+\documentclass[pract]{SCWorks}
+\usepackage{preamble}
+\usepackage{xcolor}
+
+\definecolor{codebg}{RGB}{248,248,248}
+\setminted{
+    fontsize=\footnotesize,
+    breaklines=true,
+    breakanywhere=true,
+    linenos=true,
+    numbersep=8pt,
+    style=colorful
+}
+\renewcommand{\theFancyVerbLine}{\footnotesize\arabic{FancyVerbLine}}
+\DefineVerbatimEnvironment{plaincode}{Verbatim}{fontsize=\footnotesize, breaklines=true, breakanywhere=true, xleftmargin=2em}
+
+\newcommand{\smalltt}[1]{{\footnotesize\texttt{#1}}}
+\linespread{1.5}
+
+\begin{document}
+    \studentfemale
+
+    \chair{информатики и программирования}
+
+    \title{Реализация алгоритмов на графах и веб-визуализации}
+
+    \course{3}
+
+    \group{341}
+
+    \napravlenie{02.03.01 "--- Математическое обеспечение и администрирование информационных систем}
+
+    \studenttitle{студентки}
+
+    \author{Хрустицкой Софьи Кирилловны}
+
+    \chtitle{доцент, к.\,ф.-м.\,н.}
+    \chname{М.\,В.\,Огнева}
+
+    \satitle{доцент, к.\,п. н.}
+    \saname{А.\,П.\,Грецова}
+
+    \term{6}
+
+    \practtype{проектная практика (учебная, рассредоточенная)}
+
+    \duration{16}
+
+    \practStart{05.02.2026}
+    \practFinish{31.05.2026}
+    \date{2026}
+
+    \maketitle
+    \tableofcontents
+
+    \section{Минимальные требования для класса Граф}
+
+    \textbf{Условие.}
+    Для решения всех задач курса необходимо создать класс (или иерархию классов "--- на усмотрение разработчика), содержащий:
+
+    \begin{enumerate}
+        \item Структуру для хранения списка смежности графа (не работать с графом через матрицы смежности, если в некоторых алгоритмах удобнее использовать список ребер "--- реализовать метод, создающий список рёбер на основе списка смежности).
+
+        \item Конструкторы (не менее 3-х):
+        \begin{itemize}
+            \item конструктор по умолчанию, создающий пустой граф;
+            \item конструктор, заполняющий данные графа из файла;
+            \item конструктор-копию (аккуратно, не все сразу делают именно копию);
+            \item специфические конструкторы для удобства тестирования.
+        \end{itemize}
+
+        \item Методы:
+        \begin{itemize}
+            \item добавляющие вершину;
+            \item добавляющие ребро (дугу);
+            \item удаляющие вершину;
+            \item удаляющие ребро (дугу);
+            \item выводящие список смежности в файл (в том числе в пригодном для чтения конструктором формате).
+        \end{itemize}
+        Не выполняйте некорректные операции, сообщайте об ошибках.
+
+        \item Должны поддерживаться как ориентированные, так и неориентированные графы.
+        Заранее предусмотрите возможность добавления меток и/или весов для дуг.
+        Поддержка мультиграфа не требуется.
+
+        \item Добавьте минималистичный консольный интерфейс пользователя (не смешивая его с реализацией!), позволяющий добавлять и удалять вершины и рёбра (дуги) и просматривать текущий список смежности графа.
+
+        \item Сгенерируйте не менее 4 входных файлов с разными типами графов (балансируйте на комбинации ориентированность-взвешенность) для тестирования класса в этом и последующих заданиях.
+        Графы должны содержать не менее 7-10 вершин, в том числе петли и изолированные вершины.
+    \end{enumerate}
+
+    Замечание:
+
+    В зависимости от выбранного способа хранения графа могут появиться дополнительные трудности при удалении-добавлении, например, необходимость переименования вершин, если граф хранится списком (например, vector C++, List C\#). Этого можно избежать, если хранить в списке пару (имя вершины, список смежных вершин), или хранить в другой структуре (например, Dictionary C\#, map в С++, при этом список смежности вершины может также храниться в виде словаря с ключами "--- смежными вершинами и значениями "--- весами соответствующих ребер). Идеально, если в качестве вершины реализуется обобщенный тип (generic), но достаточно использовать строковый тип или свой класс.
+
+    \textbf{Решение.}
+    В проекте реализован обобщённый класс \smalltt{Graph<T>}.
+    Вершины имеют тип \smalltt{T}, а список смежности хранится в словаре: ключ верхнего уровня "--- вершина, значение "--- словарь смежных вершин и весов рёбер.
+    Такой формат позволяет не переименовывать вершины при удалении и сразу хранить веса.
+
+    \begin{minted}{csharp}
+public struct Edge<T>
+{
+    public T From { get; }
+    public T To { get; }
+    public double Weight { get; }
+
+    public Edge(T from, T to, double weight = 1.0)
+    {
+        From = from;
+        To = to;
+        Weight = weight;
+    }
+
+    public override string ToString()
+    {
+        return $"{From} -> {To} : {Weight}";
+    }
+}
+
+public class Graph<T> where T : notnull, IComparable<T>
+{
+    private Dictionary<T, Dictionary<T, double>> _adjacencyList;
+
+    public bool IsDirected { get; }
+    public bool IsWeighted { get; }
+}
+    \end{minted}
+
+    В классе есть конструктор по умолчанию, конструктор-копия, конструктор из файла и дополнительный конструктор по набору вершин.
+
+    \begin{minted}{csharp}
+public Graph(bool isDirected = false, bool isWeighted = false)
+{
+    IsDirected = isDirected;
+    IsWeighted = isWeighted;
+    _adjacencyList = new Dictionary<T, Dictionary<T, double>>();
+}
+
+public Graph(Graph<T> other)
+{
+    if (other == null) throw new ArgumentNullException(nameof(other));
+
+    IsDirected = other.IsDirected;
+    IsWeighted = other.IsWeighted;
+    _adjacencyList = new Dictionary<T, Dictionary<T, double>>();
+
+    foreach (var vertex in other._adjacencyList)
+    {
+        var neighbors = new Dictionary<T, double>(vertex.Value);
+        _adjacencyList.Add(vertex.Key, neighbors);
+    }
+}
+
+public Graph(string filePath, Func<string, T> parser, Action<string>? log = null)
+{
+    if (!File.Exists(filePath))
+        throw new FileNotFoundException("Файл не найден", filePath);
+
+    var lines = File.ReadAllLines(filePath)
+        .Where(l => !string.IsNullOrWhiteSpace(l))
+        .ToArray();
+
+    var headerParts = lines[0].Split(' ', StringSplitOptions.RemoveEmptyEntries);
+    IsDirected = headerParts.Contains("DIRECTED", StringComparer.OrdinalIgnoreCase);
+    IsWeighted = headerParts.Contains("WEIGHTED", StringComparer.OrdinalIgnoreCase);
+
+    _adjacencyList = new Dictionary<T, Dictionary<T, double>>();
+
+    foreach (var vStr in lines[1].Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        AddVertex(parser(vStr));
+}
+
+public Graph(IEnumerable<T> vertices, bool isDirected, bool isWeighted)
+    : this(isDirected, isWeighted)
+{
+    foreach (var v in vertices)
+        AddVertex(v);
+}
+    \end{minted}
+
+    Основные операции проверяют корректность действия.
+    Если вершина отсутствует или ребро уже существует, операция не выполняется и возвращается ошибка.
+    Для неориентированного графа второе направление ребра добавляется и удаляется автоматически.
+
+    \begin{minted}{csharp}
+public bool AddVertex(T vertex)
+{
+    if (_adjacencyList.ContainsKey(vertex))
+        return false;
+
+    _adjacencyList[vertex] = new Dictionary<T, double>();
+    return true;
+}
+
+public bool RemoveVertex(T vertex)
+{
+    if (!_adjacencyList.ContainsKey(vertex))
+        return false;
+
+    _adjacencyList.Remove(vertex);
+
+    foreach (var v in _adjacencyList)
+        v.Value.Remove(vertex);
+
+    return true;
+}
+
+public void AddEdge(T from, T to, double weight = 1.0)
+{
+    if (!_adjacencyList.ContainsKey(from))
+        throw new ArgumentException($"Вершина {from} не существует.");
+    if (!_adjacencyList.ContainsKey(to))
+        throw new ArgumentException($"Вершина {to} не существует.");
+
+    if (!IsWeighted) weight = 1.0;
+
+    if (_adjacencyList[from].ContainsKey(to))
+        throw new InvalidOperationException($"Ребро из {from} в {to} уже существует.");
+
+    _adjacencyList[from][to] = weight;
+
+    if (!IsDirected && !from.Equals(to))
+        _adjacencyList[to][from] = weight;
+}
+
+public bool RemoveEdge(T from, T to)
+{
+    if (!_adjacencyList.ContainsKey(from)) return false;
+
+    bool removed = _adjacencyList[from].Remove(to);
+
+    if (!IsDirected && removed && !from.Equals(to) && _adjacencyList.ContainsKey(to))
+        _adjacencyList[to].Remove(from);
+
+    return removed;
+}
+    \end{minted}
+
+    Для алгоритмов, которым удобнее работать со списком рёбер, реализован метод \smalltt{GetEdgeList}.
+    В неориентированном графе каждое ребро попадает в список один раз.
+
+    \begin{minted}{csharp}
+public List<Edge<T>> GetEdgeList()
+{
+    var edges = new List<Edge<T>>();
+
+    foreach (var kvp in _adjacencyList)
+    {
+        T from = kvp.Key;
+        foreach (var innerKvp in kvp.Value)
+        {
+            T to = innerKvp.Key;
+            double w = innerKvp.Value;
+
+            if (!IsDirected)
+            {
+                if (from.CompareTo(to) <= 0)
+                    edges.Add(new Edge<T>(from, to, w));
+            }
+            else
+            {
+                edges.Add(new Edge<T>(from, to, w));
+            }
+        }
+    }
+
+    return edges;
+}
+    \end{minted}
+
+    Сохранение поддерживает два формата: список рёбер, пригодный для чтения конструктором, и список смежности для просмотра.
+
+    \begin{minted}{csharp}
+public void SaveToFile(string filePath, GraphSaveFormat format = GraphSaveFormat.EdgeList)
+{
+    using (var writer = new StreamWriter(filePath))
+    {
+        string type = IsDirected ? "DIRECTED" : "UNDIRECTED";
+        string weighted = IsWeighted ? "WEIGHTED" : "UNWEIGHTED";
+        writer.WriteLine($"{type} {weighted}");
+
+        writer.WriteLine(string.Join(" ", _adjacencyList.Keys));
+
+        if (format == GraphSaveFormat.EdgeList)
+        {
+            foreach (var edge in GetEdgeList())
+            {
+                string line = $"{edge.From} {edge.To}";
+                if (IsWeighted)
+                    line += $" {edge.Weight}";
+                writer.WriteLine(line);
+            }
+        }
+    }
+}
+    \end{minted}
+
+    Пользовательский интерфейс вынесен в отдельный класс \smalltt{ConsoleInterface}, поэтому логика хранения графа и работа с консолью не смешиваются.
+
+    \begin{minted}{csharp}
+public class ConsoleInterface
+{
+    private Graph<string> _graph;
+
+    public ConsoleInterface()
+    {
+        _graph = new Graph<string>(isDirected: false, isWeighted: false);
+    }
+
+    public void Run()
+    {
+        while (true)
+        {
+            Console.WriteLine("1. Создать новый граф (пустой)");
+            Console.WriteLine("2. Загрузить граф из файла");
+            Console.WriteLine("3. Добавить вершину");
+            Console.WriteLine("4. Удалить вершину");
+            Console.WriteLine("5. Добавить ребро (дугу)");
+            Console.WriteLine("6. Удалить ребро (дугу)");
+            Console.WriteLine("7. Показать список смежности");
+            Console.WriteLine("20. Выход");
+            Console.Write("Выберите опцию: ");
+
+            string choice = Console.ReadLine();
+            // далее выполняется выбранная команда
+        }
+    }
+}
+    \end{minted}
+
+    \textbf{Входные данные.}
+
+    Для тестирования используются файлы в формате: первая строка задаёт тип графа, вторая "--- вершины, следующие строки "--- рёбра.
+    Пример входного файла для ориентированного взвешенного графа:
+
+    \begin{plaincode}
+DIRECTED WEIGHTED
+1 2 3 4 5 6 7
+1 2 1
+1 3 1
+2 4 1
+3 4 1
+2 5 2
+3 6 2
+4 7 2
+5 7 1
+6 7 1
+    \end{plaincode}
+
+    \textbf{Пример интерфейса в консоли.}
+    
+    После запуска программы открывается консольное меню.
+    Пользователь выбирает действие по номеру: можно создать новый граф, загрузить его из файла, добавить или удалить вершину, добавить или удалить ребро, посмотреть текущий список смежности и сохранить граф.
+    Ниже приведён пример работы с интерфейсом: создаётся ориентированный взвешенный граф, добавляются вершины и дуги, затем выводится список смежности.
+
+    \begin{plaincode}
+--- Консольный Интерфейс Графа ---
+1. Создать новый граф (пустой)
+2. Загрузить граф из файла
+3. Добавить вершину
+4. Удалить вершину
+5. Добавить ребро (дугу)
+6. Удалить ребро (дугу)
+7. Показать список смежности
+8. Вывести не смежные вершины
+9. Вывести изолированные вершины
+10. Удалить ребра в висячие вершины
+11. Найти фундаментальные циклы (DFS)
+12. Найти фундаментальные циклы (BFS)
+13. Найти вершину с равными путями (BFS)
+14. Найти минимальное остовное дерево (Boruvka)
+15. Найти кратчайший путь (Dijkstra)
+16. Найти K кратчайших путей (Bellman-Ford)
+17. Найти циклы отрицательного веса (Floyd-Warshall)
+18. Найти максимальный поток (Edmonds-Karp)
+19. Сохранить в файл
+20. Выход
+Выберите опцию: 1
+Ориентированный? (y/n): y
+Взвешенный? (y/n): y
+Новый пустой граф создан.
+    \end{plaincode}
+
+    При добавлении вершины программа запрашивает её имя.
+    Если вершины ещё нет в графе, она добавляется; если такая вершина уже существует, выводится сообщение об ошибке.
+
+    \begin{plaincode}
+Выберите опцию: 3
+Введите имя вершины: A
+Вершина 'A' добавлена.
+
+Выберите опцию: 3
+Введите имя вершины: B
+Вершина 'B' добавлена.
+
+Выберите опцию: 3
+Введите имя вершины: C
+Вершина 'C' добавлена.
+
+Выберите опцию: 3
+Введите имя вершины: A
+Вершина 'A' уже существует.
+    \end{plaincode}
+
+    При добавлении дуги интерфейс запрашивает начальную вершину, конечную вершину и вес, так как граф был создан взвешенным.
+    Если указать несуществующую вершину или попытаться добавить уже существующую дугу, операция не выполняется.
+
+    \begin{plaincode}
+Выберите опцию: 5
+Введите исходную вершину: A
+Введите конечную вершину: B
+Введите вес: 4
+Ребро добавлено.
+
+Выберите опцию: 5
+Введите исходную вершину: A
+Введите конечную вершину: C
+Введите вес: 2
+Ребро добавлено.
+
+Выберите опцию: 5
+Введите исходную вершину: A
+Введите конечную вершину: B
+Введите вес: 5
+Ошибка: Ребро из A в B уже существует.
+    \end{plaincode}
+
+    Команда просмотра списка смежности выводит тип графа, количество вершин и список соседей каждой вершины.
+    Для взвешенного графа рядом с каждой смежной вершиной указывается вес дуги.
+
+    \begin{plaincode}
+Выберите опцию: 7
+Граф (Ориентированный: Да, Взвешенный: Да)
+Количество вершин: 3
+A: B(4), C(2)
+B: (изолированная)
+C: (изолированная)
+    \end{plaincode}
+
+    Удаление ребра и вершины также сопровождается сообщением о результате операции.
+    После удаления вершины все дуги, ведущие в неё, удаляются из списков смежности остальных вершин.
+
+    \begin{plaincode}
+Выберите опцию: 6
+Введите исходную вершину: A
+Введите конечную вершину: C
+Ребро удалено.
+
+Выберите опцию: 4
+Введите имя вершины: B
+Вершина 'B' удалена.
+
+Выберите опцию: 7
+Граф (Ориентированный: Да, Взвешенный: Да)
+Количество вершин: 2
+A: (изолированная)
+C: (изолированная)
+    \end{plaincode}
+
+    \section{Список смежности Ia}
+
+    \textbf{Условие.}
+    Вывести все вершины графа, не смежные с данной.
+
+    \textbf{Решение.}
+    Метод получает вершину, проверяет её наличие и сравнивает множество всех вершин со словарём соседей выбранной вершины.
+    Сама вершина в результат не включается.
+
+    \begin{minted}{csharp}
+public List<T> GetNonAdjacentVertices(T vertex)
+{
+    if (!_adjacencyList.ContainsKey(vertex))
+        throw new ArgumentException($"Вершина {vertex} не найдена.");
+
+    var nonAdjacent = new List<T>();
+    var neighbors = _adjacencyList[vertex];
+
+    foreach (var v in _adjacencyList.Keys)
+    {
+        if (!v.Equals(vertex) && !neighbors.ContainsKey(v))
+            nonAdjacent.Add(v);
+    }
+
+    return nonAdjacent;
+}
+    \end{minted}
+
+    В консольном интерфейсе пользователь вводит имя вершины, после чего результат выводится строкой.
+
+    \begin{minted}{csharp}
+private void ShowNonAdjacent()
+{
+    Console.Write("Введите имя вершины: ");
+    string v = Console.ReadLine();
+
+    if (!_graph.ContainsVertex(v))
+    {
+        Console.WriteLine($"Вершина '{v}' не найдена.");
+        return;
+    }
+
+    var nonAdjacent = _graph.GetNonAdjacentVertices(v);
+    Console.WriteLine($"Вершины, не смежные с '{v}': {string.Join(", ", nonAdjacent)}");
+}
+    \end{minted}
+
+    \textbf{Пример входных данных.}
+    Для проверки использовался файл \path{/Users/lunis/Documents/graph1.txt}.
+
+    \begin{plaincode}
+UNDIRECTED UNWEIGHTED
+A B C D E F G H
+A B
+B C
+C A
+D D
+F G
+G H
+C F
+F H
+A G
+    \end{plaincode}
+
+    \textbf{Пример работы в консоли.}
+    В консольном интерфейсе граф загружается из файла, затем выбирается пункт 8 и вводится вершина \smalltt{A}.
+
+    \begin{plaincode}
+--- Консольный Интерфейс Графа ---
+1. Создать новый граф (пустой)
+2. Загрузить граф из файла
+3. Добавить вершину
+4. Удалить вершину
+5. Добавить ребро (дугу)
+6. Удалить ребро (дугу)
+7. Показать список смежности
+8. Вывести не смежные вершины
+9. Вывести изолированные вершины
+10. Удалить ребра в висячие вершины
+11. Найти фундаментальные циклы (DFS)
+12. Найти фундаментальные циклы (BFS)
+13. Найти вершину с равными путями (BFS)
+14. Найти минимальное остовное дерево (Boruvka)
+15. Найти кратчайший путь (Dijkstra)
+16. Найти K кратчайших путей (Bellman-Ford)
+17. Найти циклы отрицательного веса (Floyd-Warshall)
+18. Найти максимальный поток (Edmonds-Karp)
+19. Сохранить в файл
+20. Выход
+Выберите опцию: 2
+Введите путь к файлу: /Users/lunis/Documents/graph1.txt
+Граф успешно загружен.
+
+--- Консольный Интерфейс Графа ---
+1. Создать новый граф (пустой)
+2. Загрузить граф из файла
+3. Добавить вершину
+4. Удалить вершину
+5. Добавить ребро (дугу)
+6. Удалить ребро (дугу)
+7. Показать список смежности
+8. Вывести не смежные вершины
+9. Вывести изолированные вершины
+10. Удалить ребра в висячие вершины
+11. Найти фундаментальные циклы (DFS)
+12. Найти фундаментальные циклы (BFS)
+13. Найти вершину с равными путями (BFS)
+14. Найти минимальное остовное дерево (Boruvka)
+15. Найти кратчайший путь (Dijkstra)
+16. Найти K кратчайших путей (Bellman-Ford)
+17. Найти циклы отрицательного веса (Floyd-Warshall)
+18. Найти максимальный поток (Edmonds-Karp)
+19. Сохранить в файл
+20. Выход
+Выберите опцию: 8
+Введите имя вершины: A
+Вершины, не смежные с 'A': D, E, F, H
+    \end{plaincode}
+
+    \section{Список смежности Ia}
+
+    \textbf{Условие.}
+    Вывести все изолированные вершины орграфа, то есть вершины степени 0.
+
+    \textbf{Решение.}
+    Для ориентированного графа учитываются и исходящие, и входящие дуги.
+    Сначала собирается множество вершин, в которые входят дуги, затем выбираются вершины без исходящих и входящих дуг.
+
+    \begin{minted}{csharp}
+public List<T> GetIsolatedVertices()
+{
+    var isolated = new List<T>();
+    var allVertices = _adjacencyList.Keys.ToList();
+
+    var incomingEdges = new HashSet<T>();
+    foreach (var kvp in _adjacencyList)
+    {
+        foreach (var neighbor in kvp.Value.Keys)
+            incomingEdges.Add(neighbor);
+    }
+
+    foreach (var v in allVertices)
+    {
+        bool hasOutgoing = _adjacencyList[v].Count > 0;
+
+        if (IsDirected)
+        {
+            bool hasIncoming = incomingEdges.Contains(v);
+            if (!hasOutgoing && !hasIncoming)
+                isolated.Add(v);
+        }
+        else
+        {
+            if (!hasOutgoing)
+                isolated.Add(v);
+        }
+    }
+
+    return isolated;
+}
+    \end{minted}
+
+    Вывод в интерфейсе:
+
+    \begin{minted}{csharp}
+private void ShowIsolated()
+{
+    var isolated = _graph.GetIsolatedVertices();
+    if (isolated.Count == 0)
+        Console.WriteLine("В графе нет изолированных вершин.");
+    else
+        Console.WriteLine($"Изолированные вершины: {string.Join(", ", isolated)}");
+}
+    \end{minted}
+
+    \textbf{Пример входных данных.}
+    Для проверки использовался файл \path{/Users/lunis/Documents/graph2.txt}.
+
+    \begin{plaincode}
+DIRECTED WEIGHTED
+1 2 3 4 5 6 7
+1 2 1.5
+2 3 2.0
+3 1 0.5
+4 5 10
+5 5 1
+7 1 3
+    \end{plaincode}
+
+    \textbf{Пример работы в консоли.}
+
+    \begin{plaincode}
+Выберите опцию: 2
+Введите путь к файлу: /Users/lunis/Documents/graph2.txt
+Граф успешно загружен.
+
+Выберите опцию: 9
+Изолированные вершины: 6
+    \end{plaincode}
+
+    \section{Список смежности Iб: несколько графов}
+
+    \textbf{Условие.}
+    Построить граф, полученный удалением рёбер, ведущих в висячие вершины.
+
+    \textbf{Решение.}
+    Метод сначала создаёт копию исходного графа, чтобы не изменять его во время вычисления степеней.
+    Затем вычисляются степени вершин, находятся висячие вершины степени 1 и удаляются все рёбра, которые в них входят.
+
+    \begin{minted}{csharp}
+public Graph<T> RemoveEdgesToPendantVertices()
+{
+    var newGraph = new Graph<T>(this);
+
+    var degrees = new Dictionary<T, int>();
+    foreach (var v in _adjacencyList.Keys)
+        degrees[v] = 0;
+
+    foreach (var kvp in _adjacencyList)
+    {
+        T u = kvp.Key;
+        degrees[u] += kvp.Value.Count;
+
+        foreach (var v in kvp.Value.Keys)
+        {
+            if (IsDirected)
+            {
+                if (!degrees.ContainsKey(v)) degrees[v] = 0;
+                degrees[v]++;
+            }
+        }
+    }
+
+    if (!IsDirected)
+    {
+        foreach (var v in _adjacencyList.Keys)
+            degrees[v] = _adjacencyList[v].ContainsKey(v)
+                ? _adjacencyList[v].Count + 1
+                : _adjacencyList[v].Count;
+    }
+
+    var pendantVertices = degrees
+        .Where(kvp => kvp.Value == 1)
+        .Select(kvp => kvp.Key)
+        .ToHashSet();
+
+    var edgesToRemove = new List<(T From, T To)>();
+
+    foreach (var kvp in _adjacencyList)
+        foreach (var v in kvp.Value.Keys)
+            if (pendantVertices.Contains(v))
+                edgesToRemove.Add((kvp.Key, v));
+
+    foreach (var edge in edgesToRemove)
+        newGraph.RemoveEdge(edge.From, edge.To);
+
+    return newGraph;
+}
+    \end{minted}
+
+    В интерфейсе результат становится новым текущим графом.
+
+    \begin{minted}{csharp}
+private void RemoveEdgesToPendant()
+{
+    var newGraph = _graph.RemoveEdgesToPendantVertices();
+    _graph = newGraph;
+    Console.WriteLine("Ребра, ведущие в висячие вершины, удалены. Граф обновлен.");
+}
+    \end{minted}
+
+    \textbf{Пример входных данных.}
+    Для проверки использовался файл \path{/Users/lunis/Documents/graph4.txt}.
+
+    \begin{plaincode}
+DIRECTED UNWEIGHTED
+v1 v2 v3 v4 v5 v6 v7
+v1 v2
+v2 v3
+v3 v4
+v4 v1
+v5 v6
+v6 v7
+v1 v1
+    \end{plaincode}
+
+    \textbf{Пример работы в консоли.}
+
+    \begin{plaincode}
+Выберите опцию: 2
+Введите путь к файлу: /Users/lunis/Documents/graph4.txt
+Граф успешно загружен.
+
+Выберите опцию: 10
+Ребра, ведущие в висячие вершины, удалены. Граф обновлен.
+
+Выберите опцию: 7
+Граф (Ориентированный: Да, Взвешенный: Нет)
+Количество вершин: 7
+v1: v2, v1
+v2: v3
+v3: v4
+v4: v1
+v5: v6
+v6: (изолированная)
+v7: (изолированная)
+    \end{plaincode}
+
+    \section{Обходы графа II}
+
+    \textbf{Условие.}
+    Найти фундаментальное множество циклов орграфа.
+
+    \textbf{Решение.}
+    В программе реализован поиск циклов при обходе в глубину.
+    Используются множества посещённых вершин и текущего рекурсивного стека.
+    Если во время обхода находится дуга в вершину из стека, восстанавливается цикл по словарю родителей.
+
+    \begin{minted}{csharp}
+public List<List<T>> GetFundamentalCyclesDFS(Action<string>? log = null)
+{
+    var cycles = new List<List<T>>();
+    var visited = new HashSet<T>();
+    var recursionStack = new HashSet<T>();
+    var parent = new Dictionary<T, T>();
+
+    foreach (var vertex in _adjacencyList.Keys)
+    {
+        if (!visited.Contains(vertex))
+            DFSFindCycles(vertex, visited, recursionStack, parent, cycles, log);
+    }
+
+    return cycles;
+}
+    \end{minted}
+
+    Основная часть восстановления цикла:
+
+    \begin{minted}{csharp}
+private void DFSFindCycles(
+    T current,
+    HashSet<T> visited,
+    HashSet<T> recursionStack,
+    Dictionary<T, T> parent,
+    List<List<T>> cycles,
+    Action<string>? log)
+{
+    visited.Add(current);
+    recursionStack.Add(current);
+    log?.Invoke($"DFS: посещаем {current}");
+
+    foreach (var neighbor in _adjacencyList[current].Keys)
+    {
+        log?.Invoke($"DFS: ребро {current} -> {neighbor}");
+
+        if (recursionStack.Contains(neighbor))
+        {
+            var cycle = new List<T>();
+            var p = current;
+
+            while (!p.Equals(neighbor))
+            {
+                cycle.Add(p);
+                p = parent[p];
+            }
+
+            cycle.Add(neighbor);
+            cycle.Reverse();
+            cycle.Add(neighbor);
+            cycles.Add(cycle);
+
+            log?.Invoke($"DFS: найден цикл {string.Join(" -> ", cycle)}");
+        }
+        else if (!visited.Contains(neighbor))
+        {
+            parent[neighbor] = current;
+            DFSFindCycles(neighbor, visited, recursionStack, parent, cycles, log);
+        }
+    }
+
+    recursionStack.Remove(current);
+}
+    \end{minted}
+
+    \textbf{Пример входных данных.}
+    Для проверки использовался файл \path{/Users/lunis/Documents/graph4.txt}.
+
+    \begin{plaincode}
+DIRECTED UNWEIGHTED
+v1 v2 v3 v4 v5 v6 v7
+v1 v2
+v2 v3
+v3 v4
+v4 v1
+v5 v6
+v6 v7
+v1 v1
+    \end{plaincode}
+
+    \textbf{Пример работы в консоли.}
+
+    \begin{plaincode}
+Выберите опцию: 2
+Введите путь к файлу: /Users/lunis/Documents/graph4.txt
+Граф успешно загружен.
+
+Выберите опцию: 11
+Найдено циклов (DFS): 2
+v1 -> v2 -> v3 -> v4 -> v1
+v1 -> v1
+    \end{plaincode}
+
+    \section{Обходы графа II}
+
+    \textbf{Условие.}
+    В данном графе найти такую вершину, в которую есть пути как из вершины \smalltt{u}, так и из вершины \smalltt{v} одинаковой длины по числу рёбер.
+
+    \textbf{Решение.}
+    Для решения реализованы два варианта.
+    Вариант BFS вычисляет расстояния от обеих стартовых вершин и ищет первую вершину, для которой расстояния совпали.
+
+    \begin{minted}{csharp}
+public T FindEquidistantVertexBFS(T u, T v)
+{
+    if (!_adjacencyList.ContainsKey(u))
+        throw new ArgumentException($"Вершина {u} не найдена.");
+    if (!_adjacencyList.ContainsKey(v))
+        throw new ArgumentException($"Вершина {v} не найдена.");
+
+    var distU = GetDistancesBFS(u);
+    var distV = GetDistancesBFS(v);
+
+    foreach (var node in _adjacencyList.Keys)
+        if (distU.ContainsKey(node) && distV.ContainsKey(node) && distU[node] == distV[node])
+            return node;
+
+    return default;
+}
+
+private Dictionary<T, int> GetDistancesBFS(T start)
+{
+    var dist = new Dictionary<T, int>();
+    var queue = new Queue<T>();
+
+    dist[start] = 0;
+    queue.Enqueue(start);
+
+    while (queue.Count > 0)
+    {
+        var curr = queue.Dequeue();
+        foreach (var neighbor in _adjacencyList[curr].Keys)
+        {
+            if (!dist.ContainsKey(neighbor))
+            {
+                dist[neighbor] = dist[curr] + 1;
+                queue.Enqueue(neighbor);
+            }
+        }
+    }
+
+    return dist;
+}
+    \end{minted}
+
+    Вариант DFS собирает глубины достижимых вершин из \smalltt{u}, а затем ищет совпадение при обходе из \smalltt{v}.
+
+    \begin{minted}{csharp}
+public T FindEquidistantVertexDFS(T u, T v)
+{
+    var depthU = new Dictionary<T, int>();
+    DFSCollectDepths(u, 0, new HashSet<T>(), depthU);
+
+    return DFSCheckDepths(v, 0, new HashSet<T>(), depthU);
+}
+
+private void DFSCollectDepths(T current, int depth, HashSet<T> visited, Dictionary<T, int> depths)
+{
+    visited.Add(current);
+    if (!depths.ContainsKey(current))
+        depths[current] = depth;
+
+    foreach (var neighbor in _adjacencyList[current].Keys)
+        if (!visited.Contains(neighbor))
+            DFSCollectDepths(neighbor, depth + 1, visited, depths);
+}
+    \end{minted}
+
+    \textbf{Пример входных данных.}
+    Для проверки использовался файл \path{/Users/lunis/Documents/graph6.txt}.
+
+    \begin{plaincode}
+DIRECTED WEIGHTED
+1 2 3 4 5 6 7
+1 2 1
+1 3 1
+2 4 1
+3 4 1
+2 5 2
+3 6 2
+4 7 2
+5 7 1
+6 7 1
+    \end{plaincode}
+
+    \textbf{Пример работы в консоли.}
+
+    \begin{plaincode}
+Выберите опцию: 2
+Введите путь к файлу: /Users/lunis/Documents/graph6.txt
+Граф успешно загружен.
+
+Выберите опцию: 13
+Введите вершину U: 2
+Введите вершину V: 3
+[BFS] Найдена вершина: 4
+[DFS] Найдена вершина: 4
+    \end{plaincode}
+
+    \section{Каркас III}
+
+    \textbf{Условие.}
+    Дан взвешенный неориентированный граф из \smalltt{N} вершин и \smalltt{M} рёбер.
+    Требуется найти в нём каркас минимального веса алгоритмом Борувки.
+
+    \textbf{Решение.}
+    Метод проверяет, что граф неориентированный, создаёт пустой граф для результата и использует структуру непересекающихся множеств через словари \smalltt{parent} и \smalltt{rank}.
+
+    \begin{minted}{csharp}
+public Graph<T> GetMinimumSpanningTreeBoruvka(Action<string>? log = null)
+{
+    if (IsDirected)
+        throw new InvalidOperationException(
+            "Алгоритм Борувка работает только для неориентированных графов.");
+
+    var mst = new Graph<T>(false, IsWeighted);
+
+    foreach (var v in _adjacencyList.Keys)
+        mst.AddVertex(v);
+
+    var parent = new Dictionary<T, T>();
+    var rank = new Dictionary<T, int>();
+
+    foreach (var v in _adjacencyList.Keys)
+    {
+        parent[v] = v;
+        rank[v] = 0;
+    }
+}
+    \end{minted}
+
+    На каждом шаге для каждой компоненты выбирается самое дешёвое исходящее ребро.
+    Если оно соединяет разные компоненты, ребро добавляется в минимальный каркас.
+
+    \begin{minted}{csharp}
+while (numTrees > 1)
+{
+    var cheapest = new Dictionary<T, (T u, T v, double w)>();
+    bool edgeAdded = false;
+
+    foreach (var u in _adjacencyList.Keys)
+    {
+        foreach (var kvp in _adjacencyList[u])
+        {
+            T v = kvp.Key;
+            double w = kvp.Value;
+
+            if (!IsDirected && u.CompareTo(v) > 0)
+                continue;
+
+            T setU = Find(u);
+            T setV = Find(v);
+
+            if (!setU.Equals(setV))
+            {
+                if (!cheapest.ContainsKey(setU) || w < cheapest[setU].w)
+                    cheapest[setU] = (u, v, w);
+
+                if (!cheapest.ContainsKey(setV) || w < cheapest[setV].w)
+                    cheapest[setV] = (u, v, w);
+            }
+        }
+    }
+
+    foreach (var edge in cheapest.Values.Distinct().ToList())
+    {
+        T setU = Find(edge.u);
+        T setV = Find(edge.v);
+
+        if (!setU.Equals(setV))
+        {
+            mst.AddEdge(edge.u, edge.v, edge.w);
+            Union(setU, setV);
+            numTrees--;
+            edgeAdded = true;
+        }
+    }
+
+    if (!edgeAdded)
+        break;
+}
+    \end{minted}
+
+    \textbf{Пример входных данных.}
+    Для проверки использовался файл \path{/Users/lunis/Documents/graph3.txt}.
+
+    \begin{plaincode}
+UNDIRECTED WEIGHTED
+X Y Z W P Q R S
+X Y 5
+Y Z 3
+X Z 10
+W W 2
+P Q 1
+Q R 1
+R P 1
+    \end{plaincode}
+
+    \textbf{Пример работы в консоли.}
+
+    \begin{plaincode}
+Выберите опцию: 2
+Введите путь к файлу: /Users/lunis/Documents/graph3.txt
+Граф успешно загружен.
+
+Выберите опцию: 14
+Нет рёбер для объединения. Граф несвязный.
+
+=== Готовое минимальное остовное дерево ===
+X -> Y : 5
+Y -> Z : 3
+P -> Q : 1
+P -> R : 1
+Минимальное остовное дерево (Алгоритм Борувки):
+X -> Y : 5
+Y -> Z : 3
+P -> Q : 1
+P -> R : 1
+Общий вес: 10
+    \end{plaincode}
+
+    \section{Веса IV а}
+
+    \textbf{Условие.}
+    В графе нет рёбер отрицательного веса.
+    Алгоритмом Дейкстры найти длину кратчайшего пути из \smalltt{u} в \smalltt{v} и вывести все пути такой длины.
+
+    \textbf{Решение.}
+    Реализация сначала проверяет отсутствие отрицательных весов.
+    Для каждой вершины хранится расстояние и множество предшественников, поэтому при равных расстояниях сохраняются все варианты кратчайших путей.
+
+    \begin{minted}{csharp}
+public (double distance, List<List<T>> paths)
+    GetShortestPathsDijkstra(T start, T end, Action<string>? log = null)
+{
+    foreach (var u in _adjacencyList)
+        foreach (var v in u.Value)
+            if (v.Value < 0)
+                throw new InvalidOperationException(
+                    "Граф содержит ребра с отрицательным весом. Алгоритм Дейкстры неприменим.");
+
+    var distances = new Dictionary<T, double>();
+    var predecessors = new Dictionary<T, HashSet<T>>();
+    var pq = new PriorityQueue<T, double>();
+
+    foreach (var v in _adjacencyList.Keys)
+        distances[v] = double.PositiveInfinity;
+
+    distances[start] = 0;
+    pq.Enqueue(start, 0);
+}
+    \end{minted}
+
+    При релаксации, если найдено такое же расстояние, предшественник добавляется в множество.
+    После завершения работы все пути восстанавливаются рекурсивно.
+
+    \begin{minted}{csharp}
+double newDist = distances[u] + weight;
+
+if (newDist < distances[v])
+{
+    distances[v] = newDist;
+    predecessors[v] = new HashSet<T> { u };
+    pq.Enqueue(v, newDist);
+}
+else if (Math.Abs(newDist - distances[v]) < 1e-9)
+{
+    if (!predecessors.ContainsKey(v))
+        predecessors[v] = new HashSet<T>();
+    predecessors[v].Add(u);
+}
+
+var paths = new List<List<T>>();
+var pathStack = new List<T>();
+ReconstructPathsDFS(end, start, predecessors, pathStack, paths);
+
+return (distances[end], paths);
+    \end{minted}
+
+    \textbf{Пример входных данных.}
+    Для проверки использовался файл \path{/Users/lunis/Documents/graph6.txt}.
+
+    \begin{plaincode}
+DIRECTED WEIGHTED
+1 2 3 4 5 6 7
+1 2 1
+1 3 1
+2 4 1
+3 4 1
+2 5 2
+3 6 2
+4 7 2
+5 7 1
+6 7 1
+    \end{plaincode}
+
+    \textbf{Пример работы в консоли.}
+
+    \begin{plaincode}
+Выберите опцию: 2
+Введите путь к файлу: /Users/lunis/Documents/graph6.txt
+Граф успешно загружен.
+
+Выберите опцию: 15
+Введите начальную вершину: 1
+Введите конечную вершину: 7
+Кратчайшее расстояние: 4
+Найдено путей: 4
+1 -> 2 -> 4 -> 7
+1 -> 3 -> 4 -> 7
+1 -> 3 -> 6 -> 7
+1 -> 2 -> 5 -> 7
+    \end{plaincode}
+
+    \section{Веса IV b}
+
+    \textbf{Условие.}
+    В графе нет циклов отрицательного веса.
+    Алгоритмом Беллмана-Форда найти \smalltt{k} кратчайших путей между вершинами \smalltt{u} и \smalltt{v}.
+
+    \textbf{Решение.}
+    Для каждой вершины хранится не одно расстояние, а список до \smalltt{k} лучших состояний.
+    Состояние включает стоимость, предшественника, индекс состояния предшественника и набор уже посещённых вершин, чтобы восстанавливались простые пути.
+
+    \begin{minted}{csharp}
+public List<(double distance, List<T> path)>
+    GetKShortestPathsBellmanFord(T start, T end, int k, Action<string>? log = null)
+{
+    if (k <= 0)
+        throw new ArgumentException("K должно быть больше 0.");
+
+    var dist = new Dictionary<T, List<(double cost, T pred, int predIdx,
+        HashSet<T> visitedNodes)>>();
+
+    foreach (var v in _adjacencyList.Keys)
+        dist[v] = new List<(double, T, int, HashSet<T>)>();
+
+    var startVisited = new HashSet<T> { start };
+    dist[start].Add((0, default, -1, startVisited));
+}
+    \end{minted}
+
+    На каждой итерации просматриваются все рёбра и расширяются уже найденные состояния.
+    Список состояний вершины сортируется по стоимости и обрезается до \smalltt{k}.
+
+    \begin{minted}{csharp}
+for (int i = 0; i < maxIterations; i++)
+{
+    bool changed = false;
+
+    foreach (var edge in allEdges)
+    {
+        T u = edge.u;
+        T v = edge.v;
+        double w = edge.w;
+
+        for (int idx = 0; idx < dist[u].Count; idx++)
+        {
+            var currentState = dist[u][idx];
+            if (currentState.visitedNodes.Contains(v))
+                continue;
+
+            double newCost = currentState.cost + w;
+            var newVisited = new HashSet<T>(currentState.visitedNodes);
+            newVisited.Add(v);
+
+            dist[v].Add((newCost, u, idx, newVisited));
+            dist[v].Sort((a, b) => a.cost.CompareTo(b.cost));
+
+            if (dist[v].Count > k)
+                dist[v].RemoveRange(k, dist[v].Count - k);
+
+            changed = true;
+        }
+    }
+
+    if (!changed)
+        break;
+}
+    \end{minted}
+
+    \textbf{Пример входных данных.}
+    Для проверки использовался файл \path{/Users/lunis/Documents/graph8.txt}.
+
+    \begin{plaincode}
+DIRECTED WEIGHTED
+A B C
+A B 2
+A C 5
+C B -10
+    \end{plaincode}
+
+    \textbf{Пример работы в консоли.}
+
+    \begin{plaincode}
+Выберите опцию: 2
+Введите путь к файлу: /Users/lunis/Documents/graph8.txt
+Граф успешно загружен.
+
+Выберите опцию: 16
+Введите начальную вершину: A
+Введите конечную вершину: B
+Введите количество путей (K): 2
+
+--- Поиск 2 простых кратчайших путей из A в B (модифицированный Беллман-Форд) ---
+
+Восстановлен путь: A -> C -> B со стоимостью -5
+Восстановлен путь: A -> B со стоимостью 2
+Найдено 2 кратчайших путей (Bellman-Ford):
+#1 (Длина: -5): A -> C -> B
+#2 (Длина: 2): A -> B
+    \end{plaincode}
+
+    \section{Веса IV с}
+
+    \textbf{Условие.}
+    В графе могут быть циклы отрицательного веса.
+    Алгоритмом Флойда вывести все отрицательные циклы.
+
+    \textbf{Решение.}
+    В методе создаются матрица расстояний и матрица родителей.
+    После выполнения релаксаций Флойда-Уоршелла отрицательный цикл определяется по условию \smalltt{dist[i, i] < 0}.
+
+    \begin{minted}{csharp}
+public List<List<T>> GetNegativeCyclesFloydWarshall(Action<string>? log = null)
+{
+    var vertices = _adjacencyList.Keys.ToList();
+    int n = vertices.Count;
+    var vertexToIndex = new Dictionary<T, int>();
+
+    for (int i = 0; i < n; i++)
+        vertexToIndex[vertices[i]] = i;
+
+    double[,] dist = new double[n, n];
+    int?[,] parent = new int?[n, n];
+
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            dist[i, j] = double.PositiveInfinity;
+            parent[i, j] = null;
+        }
+
+        dist[i, i] = 0;
+    }
+}
+    \end{minted}
+
+    Обновление расстояний и поиск циклов:
+
+    \begin{minted}{csharp}
+for (int k = 0; k < n; k++)
+{
+    for (int i = 0; i < n; i++)
+    {
+        for (int j = 0; j < n; j++)
+        {
+            if (!double.IsPositiveInfinity(dist[i, k]) &&
+                !double.IsPositiveInfinity(dist[k, j]) &&
+                dist[i, k] + dist[k, j] < dist[i, j])
+            {
+                dist[i, j] = dist[i, k] + dist[k, j];
+                parent[i, j] = parent[k, j];
+            }
+        }
+    }
+}
+
+for (int i = 0; i < n; i++)
+{
+    if (dist[i, i] < 0)
+    {
+        // по parent восстанавливается отрицательный цикл
+    }
+}
+    \end{minted}
+
+    Чтобы один и тот же цикл не выводился несколько раз, он нормализуется и сохраняется в \smalltt{HashSet}.
+
+    \begin{minted}{csharp}
+var minVertex = cycle.Min();
+int minIdx = cycle.IndexOf(minVertex);
+var normalizedCycle = new List<T>();
+
+for (int k = 0; k < cycle.Count - 1; k++)
+    normalizedCycle.Add(cycle[(minIdx + k) % (cycle.Count - 1)]);
+
+normalizedCycle.Add(normalizedCycle[0]);
+
+string hash = string.Join("->", normalizedCycle);
+if (seenCycles.Add(hash))
+    cycles.Add(normalizedCycle);
+    \end{minted}
+
+    \textbf{Пример входных данных.}
+    Для проверки использовался файл \path{/Users/lunis/Documents/graph7.txt}.
+
+    \begin{plaincode}
+DIRECTED WEIGHTED
+1 2 3 4 5 6 7
+1 2 2
+2 3 -5
+3 1 1
+3 4 2
+4 5 2
+5 6 -4
+6 4 1
+6 7 3
+1 7 10
+    \end{plaincode}
+
+    \textbf{Пример работы в консоли.}
+
+    \begin{plaincode}
+Выберите опцию: 2
+Введите путь к файлу: /Users/lunis/Documents/graph7.txt
+Граф успешно загружен.
+
+Выберите опцию: 17
+Найдено циклов отрицательного веса: 2
+1 -> 2 -> 3 -> 1
+4 -> 5 -> 6 -> 4
+    \end{plaincode}
+
+    \section{Максимальный поток V}
+
+    \textbf{Условие.}
+    Решить задачу на нахождение максимального потока любым алгоритмом.
+    Подготовить примеры, демонстрирующие работу алгоритма в разных случаях.
+
+    \textbf{Решение.}
+    В проекте реализован алгоритм Эдмондса-Карпа.
+    Вес дуги используется как пропускная способность, поэтому метод применяется к ориентированному взвешенному графу с неотрицательными весами.
+
+    \begin{minted}{csharp}
+public double GetMaxFlowEdmondsKarp(T source, T sink, Action<string>? log = null)
+{
+    if (!_adjacencyList.ContainsKey(source))
+        throw new ArgumentException($"Вершина {source} не найдена.");
+    if (!_adjacencyList.ContainsKey(sink))
+        throw new ArgumentException($"Вершина {sink} не найдена.");
+    if (source.Equals(sink))
+        return 0;
+
+    var residualCapacity = new Dictionary<T, Dictionary<T, double>>();
+    foreach (var u in _adjacencyList.Keys)
+        residualCapacity[u] = new Dictionary<T, double>();
+}
+    \end{minted}
+
+    Сначала строится остаточная сеть.
+    Для каждой исходной дуги создаётся обратная дуга с нулевой остаточной пропускной способностью.
+
+    \begin{minted}{csharp}
+foreach (var u in _adjacencyList)
+{
+    foreach (var v in u.Value)
+    {
+        T from = u.Key;
+        T to = v.Key;
+        double capacity = v.Value;
+
+        if (capacity < 0)
+            throw new InvalidOperationException(
+                "Алгоритм Эдмондса-Карпа не поддерживает отрицательные пропускные способности.");
+
+        if (!residualCapacity[from].ContainsKey(to))
+            residualCapacity[from][to] = 0;
+        residualCapacity[from][to] += capacity;
+
+        if (!residualCapacity.ContainsKey(to))
+            residualCapacity[to] = new Dictionary<T, double>();
+        if (!residualCapacity[to].ContainsKey(from))
+            residualCapacity[to][from] = 0;
+    }
+}
+    \end{minted}
+
+    Затем в остаточной сети BFS ищет увеличивающий путь.
+    Найденный поток прибавляется к ответу, а остаточные пропускные способности обновляются.
+
+    \begin{minted}{csharp}
+double maxFlow = 0;
+
+while (true)
+{
+    var parent = new Dictionary<T, T>();
+    var queue = new Queue<T>();
+
+    queue.Enqueue(source);
+    parent[source] = source;
+
+    bool reachedSink = false;
+
+    while (queue.Count > 0 && !reachedSink)
+    {
+        var u = queue.Dequeue();
+
+        foreach (var kvp in residualCapacity[u])
+        {
+            var v = kvp.Key;
+            var capacity = kvp.Value;
+
+            if (!parent.ContainsKey(v) && capacity > 0)
+            {
+                parent[v] = u;
+                queue.Enqueue(v);
+                reachedSink = v.Equals(sink);
+            }
+        }
+    }
+
+    if (!reachedSink)
+        break;
+
+    double pathFlow = double.PositiveInfinity;
+    T curr = sink;
+    while (!curr.Equals(source))
+    {
+        T prev = parent[curr];
+        pathFlow = Math.Min(pathFlow, residualCapacity[prev][curr]);
+        curr = prev;
+    }
+
+    curr = sink;
+    while (!curr.Equals(source))
+    {
+        T prev = parent[curr];
+        residualCapacity[prev][curr] -= pathFlow;
+        residualCapacity[curr][prev] += pathFlow;
+        curr = prev;
+    }
+
+    maxFlow += pathFlow;
+}
+
+return maxFlow;
+    \end{minted}
+
+    \textbf{Пример входных данных.}
+    Для проверки использовался файл \path{/Users/lunis/Documents/graph9.txt}.
+    Граф соответствует примеру со схемы: источник \smalltt{S}, сток \smalltt{T}, пропускные способности подписаны на дугах.
+
+    \begin{plaincode}
+DIRECTED WEIGHTED
+S A B C D T
+S C 2
+S D 2
+C A 2
+C B 2
+D A 2
+A T 2
+B T 3
+    \end{plaincode}
+
+    \textbf{Пример работы в консоли.}
+
+    \begin{plaincode}
+Выберите опцию: 2
+Введите путь к файлу: /Users/lunis/Documents/graph9.txt
+Граф успешно загружен.
+
+Выберите опцию: 18
+Введите вершину-источник (Source): S
+Введите вершину-сток (Sink): T
+Найдён увеличивающий путь: S -> C -> A -> T с потоком 2
+Найдён увеличивающий путь: S -> D -> A -> C -> B -> T с потоком 2
+
+Максимальный поток из S в T: 4
+    \end{plaincode}
+
+    \section{Задание на визуализацию}
+
+    \textbf{Условие.}
+    Творческое задание, включающее визуализацию графов.
+    Направленность может быть обучающей или развлекательной.
+    В данной работе реализовано web-приложение.
+
+    \textbf{Решение.}
+    Визуализация реализована как веб-приложение на Blazor.
+    Проект \smalltt{Graph.Web} использует общий класс \smalltt{Graph<string>}.
+    Через интерфейс можно создавать, импортировать, редактировать и экспортировать графы, а также запускать алгоритмы с пошаговой подсветкой.
+
+    \begin{minted}{csharp}
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services
+    .AddRazorComponents()
+    .AddInteractiveServerComponents();
+
+var app = builder.Build();
+
+app.UseStaticFiles();
+app.UseAntiforgery();
+
+app.MapRazorComponents<App>()
+    .AddInteractiveServerRenderMode();
+
+app.Run();
+    \end{minted}
+
+    На странице приложения хранится текущий граф, координаты вершин, выбранные вершины, подсветка рёбер и шаги алгоритма.
+
+    \begin{minted}{csharp}
+protected Graph<string> _graph = default!;
+protected Graph<string> Graph => _graph;
+
+private readonly Dictionary<string, GraphPoint> _positions = new(StringComparer.Ordinal);
+private readonly HashSet<string> _visitedVertices = new(StringComparer.Ordinal);
+private readonly HashSet<GraphEdgeKey> _committedEdges = new();
+private HashSet<string> _highlightVertices = new(StringComparer.Ordinal);
+private HashSet<GraphEdgeKey> _highlightEdges = new();
+private List<GraphStep> _stepSessionSteps = new();
+private int _stepIndex = -1;
+    \end{minted}
+
+    Добавление вершин и рёбер в web-интерфейсе выполняется через методы страницы, которые вызывают методы класса графа.
+
+    \begin{minted}{csharp}
+protected void AddVertexFromPanel()
+{
+    if (string.IsNullOrWhiteSpace(_newVertexName))
+    {
+        ShowError("Введите имя вершины.");
+        return;
+    }
+
+    if (!_graph.AddVertex(_newVertexName))
+    {
+        ShowError($"Вершина '{_newVertexName}' уже существует.");
+        return;
+    }
+
+    _positions[_newVertexName] = SpawnPositionNearCenter();
+    SetStatus($"Вершина '{_newVertexName}' добавлена.");
+    _newVertexName = "";
+}
+
+protected void AddEdgeFromPanel()
+{
+    if (!HasPairSelection)
+    {
+        ShowError("Выбери две вершины по порядку на графе.");
+        return;
+    }
+
+    var weight = ParseWeight(_edgeWeightInput);
+    _graph.AddEdge(PrimarySelection!, SecondarySelection!, weight);
+    SetStatus($"Ребро '{PrimarySelection} -> {SecondarySelection}' добавлено.");
+}
+    \end{minted}
+
+    Алгоритмы запускаются из интерфейса.
+    Через делегат \smalltt{log} они передают в приложение текстовые шаги.
+    Эти шаги затем используются для подсветки вершин и рёбер.
+
+    \begin{minted}{csharp}
+protected async Task RunMaxFlow()
+{
+    if (!HasPairSelection)
+    {
+        ShowError("Выбери две вершины на графе: source, затем sink.");
+        return;
+    }
+
+    if (!_graph.IsDirected || !_graph.IsWeighted)
+    {
+        ShowError("Edmonds-Karp требует ориентированный взвешенный граф.");
+        return;
+    }
+
+    var maxFlow = await RunWithSteps(
+        log => _graph.GetMaxFlowEdmondsKarp(PrimarySelection!, SecondarySelection!, log));
+
+    _resultTitle = "Edmonds-Karp";
+    _resultText = $"Максимальный поток: {maxFlow:0.###}";
+}
+    \end{minted}
+
+    Для отображения графа используется SVG-разметка.
+    Вершины выводятся окружностями, рёбра "--- линиями, а для ориентированных графов добавляется маркер стрелки.
+
+    \begin{minted}{html}
+<svg class="graph-canvas"
+     @ref="_svgRef"
+     viewBox="@SvgViewBox"
+     @onpointermove="OnPointerMove"
+     @onpointerup="OnPointerUp"
+     @onpointerdown="OnCanvasPointerDown">
+    <defs>
+        <marker id="arrow" markerWidth="11" markerHeight="11" refX="9" refY="5.5" orient="auto">
+            <path d="M 0 0 L 11 5.5 L 0 11 z" fill="#ffd1a1"></path>
+        </marker>
+    </defs>
+
+    @foreach (var edge in EdgeVisuals)
+    {
+        <line x1="@edge.X1" y1="@edge.Y1"
+              x2="@edge.X2" y2="@edge.Y2"
+              class="@edge.CssClass"
+              marker-end="@(_graph.IsDirected ? "url(#arrow)" : null)"></line>
+    }
+</svg>
+    \end{minted}
+
+    Небольшой JavaScript-модуль используется для скачивания экспортированного графа, обработки горячих клавиш и преобразования координат курсора в координаты SVG.
+
+    \begin{minted}{javascript}
+window.graphInterop = {
+  downloadText(fileName, text) {
+    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  },
+
+  getSvgPoint(svg, clientX, clientY) {
+    const point = svg.createSVGPoint();
+    point.x = clientX;
+    point.y = clientY;
+    return point.matrixTransform(svg.getScreenCTM().inverse());
+  }
+};
+    \end{minted}
+
+    В результате практической работы получена единая программа: консольная часть подходит для проверки алгоритмов, а web-интерфейс позволяет визуально редактировать графы и наблюдать выполнение алгоритмов по шагам.
+
+    \begin{figure}[H]
+        \centering
+        \IfFileExists{images/site_view.png}
+        {
+            \includegraphics[width=0.95\textwidth]{images/site_view.png}
+        }
+        {
+            \fbox{
+                \begin{minipage}[c][7cm][c]{0.9\textwidth}
+                    \centering
+                    Здесь будет скриншот web-приложения.\\
+                    Файл: \path{images/site_view.png}
+                \end{minipage}
+            }
+        }
+        \caption{Внешний вид web-приложения для визуализации графов}
+    \end{figure}
+
+\end{document}
