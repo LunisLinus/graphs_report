@@ -6,13 +6,17 @@
 \setminted{
     fontsize=\footnotesize,
     breaklines=true,
-    breakanywhere=true,
+    breakanywhere=false,
+    breakbytoken=false,
+    breakbytokenanywhere=false,
+    breakautoindent=false,
+    breakindent=0pt,
     linenos=true,
-    numbersep=8pt,
+    numbersep=6pt,
     style=colorful
 }
 \renewcommand{\theFancyVerbLine}{\footnotesize\arabic{FancyVerbLine}}
-\DefineVerbatimEnvironment{plaincode}{Verbatim}{fontsize=\footnotesize, breaklines=true, breakanywhere=true, xleftmargin=2em}
+\DefineVerbatimEnvironment{plaincode}{Verbatim}{fontsize=\footnotesize, breaklines=true, breakanywhere=false, breakautoindent=false, breakindent=0pt, xleftmargin=0.5em}
 
 \newcommand{\smalltt}[1]{{\footnotesize\texttt{#1}}}
 \linespread{1.5}
@@ -725,7 +729,9 @@ private void RemoveEdgesToPendant()
 {
     var newGraph = _graph.RemoveEdgesToPendantVertices();
     _graph = newGraph;
-    Console.WriteLine("Ребра, ведущие в висячие вершины, удалены. Граф обновлен.");
+    Console.WriteLine(
+        "Ребра, ведущие в висячие вершины, удалены. " +
+        "Граф обновлен.");
 }
     \end{minted}
 
@@ -1442,7 +1448,8 @@ foreach (var u in _adjacencyList)
 
         if (capacity < 0)
             throw new InvalidOperationException(
-                "Алгоритм Эдмондса-Карпа не поддерживает отрицательные пропускные способности.");
+                "Алгоритм Эдмондса-Карпа не поддерживает " +
+                "отрицательные пропускные способности.");
 
         if (!residualCapacity[from].ContainsKey(to))
             residualCapacity[from][to] = 0;
