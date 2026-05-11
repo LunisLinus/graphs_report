@@ -19,6 +19,25 @@
 \DefineVerbatimEnvironment{plaincode}{Verbatim}{fontsize=\footnotesize, breaklines=true, breakanywhere=false, breakautoindent=false, breakindent=0pt, xleftmargin=0.5em}
 
 \newcommand{\smalltt}[1]{{\footnotesize\texttt{#1}}}
+\newcommand{\graphfigure}[2]{
+    \begin{figure}[H]
+        \centering
+        \IfFileExists{#1}
+        {
+            \includegraphics[width=0.9\textwidth]{#1}
+        }
+        {
+            \fbox{
+                \begin{minipage}[c][6cm][c]{0.85\textwidth}
+                    \centering
+                    Здесь будет изображение графа.\\
+                    Файл: \texttt{\detokenize{#1}}
+                \end{minipage}
+            }
+        }
+        \caption{#2}
+    \end{figure}
+}
 \linespread{1.5}
 
 \begin{document}
@@ -41,8 +60,8 @@
     \chtitle{доцент, к.\,ф.-м.\,н.}
     \chname{М.\,В.\,Огнева}
 
-    \satitle{доцент, к.\,п. н.}
-    \saname{А.\,П.\,Грецова}
+    \satitle{к.\,п. н.}
+    \saname{А.\,А.\,Казачкова}
 
     \term{6}
 
@@ -333,7 +352,7 @@ public class ConsoleInterface
 }
     \end{minted}
 
-    \textbf{Входные данные.}
+    \textbf{Пример входных данных.}
 
     Для тестирования используются файлы в формате: первая строка задаёт тип графа, вторая "--- вершины, следующие строки "--- рёбра.
     Пример входного файла для ориентированного взвешенного графа:
@@ -351,6 +370,9 @@ DIRECTED WEIGHTED
 5 7 1
 6 7 1
     \end{plaincode}
+
+        \graphfigure{images/task1_graph.png}{Граф для задания 1}
+
 
     \textbf{Пример интерфейса в консоли.}
     
@@ -510,7 +532,6 @@ private void ShowNonAdjacent()
     \end{minted}
 
     \textbf{Пример входных данных.}
-    Для проверки использовался файл \path{/Users/lunis/Documents/graph1.txt}.
 
     \begin{plaincode}
 UNDIRECTED UNWEIGHTED
@@ -525,6 +546,9 @@ C F
 F H
 A G
     \end{plaincode}
+
+        \graphfigure{images/task2_graph.png}{Граф для задания 2}
+
 
     \textbf{Пример работы в консоли.}
     В консольном интерфейсе граф загружается из файла, затем выбирается пункт 8 и вводится вершина \smalltt{A}.
@@ -638,7 +662,6 @@ private void ShowIsolated()
     \end{minted}
 
     \textbf{Пример входных данных.}
-    Для проверки использовался файл \path{/Users/lunis/Documents/graph2.txt}.
 
     \begin{plaincode}
 DIRECTED WEIGHTED
@@ -650,6 +673,9 @@ DIRECTED WEIGHTED
 5 5 1
 7 1 3
     \end{plaincode}
+
+        \graphfigure{images/task3_graph.png}{Граф для задания 3}
+
 
     \textbf{Пример работы в консоли.}
 
@@ -736,7 +762,6 @@ private void RemoveEdgesToPendant()
     \end{minted}
 
     \textbf{Пример входных данных.}
-    Для проверки использовался файл \path{/Users/lunis/Documents/graph4.txt}.
 
     \begin{plaincode}
 DIRECTED UNWEIGHTED
@@ -749,6 +774,9 @@ v5 v6
 v6 v7
 v1 v1
     \end{plaincode}
+
+        \graphfigure{images/task4_graph.png}{Граф для задания 4}
+
 
     \textbf{Пример работы в консоли.}
 
@@ -849,7 +877,6 @@ private void DFSFindCycles(
     \end{minted}
 
     \textbf{Пример входных данных.}
-    Для проверки использовался файл \path{/Users/lunis/Documents/graph4.txt}.
 
     \begin{plaincode}
 DIRECTED UNWEIGHTED
@@ -862,6 +889,9 @@ v5 v6
 v6 v7
 v1 v1
     \end{plaincode}
+
+        \graphfigure{images/task4_graph.png}{Граф для задания 5}
+
 
     \textbf{Пример работы в консоли.}
 
@@ -952,7 +982,6 @@ private void DFSCollectDepths(T current, int depth, HashSet<T> visited, Dictiona
     \end{minted}
 
     \textbf{Пример входных данных.}
-    Для проверки использовался файл \path{/Users/lunis/Documents/graph6.txt}.
 
     \begin{plaincode}
 DIRECTED WEIGHTED
@@ -967,6 +996,9 @@ DIRECTED WEIGHTED
 5 7 1
 6 7 1
     \end{plaincode}
+
+        \graphfigure{images/task6_graph.png}{Граф для задания 6}
+
 
     \textbf{Пример работы в консоли.}
 
@@ -1067,7 +1099,6 @@ while (numTrees > 1)
     \end{minted}
 
     \textbf{Пример входных данных.}
-    Для проверки использовался файл \path{/Users/lunis/Documents/graph3.txt}.
 
     \begin{plaincode}
 UNDIRECTED WEIGHTED
@@ -1080,6 +1111,9 @@ P Q 1
 Q R 1
 R P 1
     \end{plaincode}
+
+        \graphfigure{images/task7_graph.png}{Граф для задания 7}
+
 
     \textbf{Пример работы в консоли.}
 
@@ -1163,8 +1197,6 @@ return (distances[end], paths);
     \end{minted}
 
     \textbf{Пример входных данных.}
-    Для проверки использовался файл \path{/Users/lunis/Documents/graph6.txt}.
-
     \begin{plaincode}
 DIRECTED WEIGHTED
 1 2 3 4 5 6 7
@@ -1178,6 +1210,9 @@ DIRECTED WEIGHTED
 5 7 1
 6 7 1
     \end{plaincode}
+
+        \graphfigure{images/task6_graph.png}{Граф для задания 8}
+
 
     \textbf{Пример работы в консоли.}
 
@@ -1265,7 +1300,6 @@ for (int i = 0; i < maxIterations; i++)
     \end{minted}
 
     \textbf{Пример входных данных.}
-    Для проверки использовался файл \path{/Users/lunis/Documents/graph8.txt}.
 
     \begin{plaincode}
 DIRECTED WEIGHTED
@@ -1274,6 +1308,9 @@ A B 2
 A C 5
 C B -10
     \end{plaincode}
+
+        \graphfigure{images/task9_graph.png}{Граф для задания 9}
+
 
     \textbf{Пример работы в консоли.}
 
@@ -1379,7 +1416,6 @@ if (seenCycles.Add(hash))
     \end{minted}
 
     \textbf{Пример входных данных.}
-    Для проверки использовался файл \path{/Users/lunis/Documents/graph7.txt}.
 
     \begin{plaincode}
 DIRECTED WEIGHTED
@@ -1394,6 +1430,8 @@ DIRECTED WEIGHTED
 6 7 3
 1 7 10
     \end{plaincode}
+
+        \graphfigure{images/task10_graph.png}{Граф для задания 10}
 
     \textbf{Пример работы в консоли.}
 
@@ -1525,8 +1563,6 @@ return maxFlow;
     \end{minted}
 
     \textbf{Пример входных данных.}
-    Для проверки использовался файл \path{/Users/lunis/Documents/graph9.txt}.
-    Граф соответствует примеру со схемы: источник \smalltt{S}, сток \smalltt{T}, пропускные способности подписаны на дугах.
 
     \begin{plaincode}
 DIRECTED WEIGHTED
@@ -1539,6 +1575,9 @@ D A 2
 A T 2
 B T 3
     \end{plaincode}
+
+        \graphfigure{images/task11_graph.png}{Граф для задания 11}
+
 
     \textbf{Пример работы в консоли.}
 
